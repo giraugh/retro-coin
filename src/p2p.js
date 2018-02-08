@@ -61,6 +61,11 @@ class PeerToPeerServer {
   }
 
   handleBlockChainResponse (receivedBlocks) {
+    console.log('Handling block chain response of: ' + JSON.stringify(receivedBlocks, null, 4))
+
+    // Convert received blocks to 'blocks'
+    receivedBlocks = receivedBlocks.map(block => Block.fromObject(block))
+
     if (receivedBlocks.length === 0) {
       return console.log('Received 0 length chain.')
     }
@@ -70,20 +75,21 @@ class PeerToPeerServer {
       return console.log('Block structure invalid')
     }
 
-    const latestBlockHeld = this.chain.latestBlock()
+    const latestBlockHeld = this.blockchain.latestBlock()
     if (latestBlockReceived.index > latestBlockHeld.index) {
       console.log(
         `Chain possibly behind - peer latest index: ${latestBlockReceived.index}, our latest index: ${latestBlockHeld.index}`
       )
       if (latestBlockHeld.hash === latestBlockReceived.previousHash) {
         if (this.blockchain.addBlock(latestBlockReceived)) {
-          this.broadcast(this.responseLatestMessage())
+          console.log('Added new block, broadcasting...')
+          this.broadcastLatest()
         }
       } else if (receivedBlocks.length === 1) {
         console.log('We have to query the chain from our peer.')
         this.broadcast(this.queryAllMsg())
       } else {
-        console.log('Receieved chainis longer than ours, replacing...')
+        console.log('Receieved chain is longer than ours, replacing...')
         this.blockchain.replace(receivedBlocks)
       }
     } else {
@@ -104,13 +110,13 @@ class PeerToPeerServer {
   responseChainMessage () {
     return {
       type: RESPONSE_BLOCKCHAIN,
-      data: JSON.stringify(bc.chain)
+      data: JSON.stringify(this.blockchain.chain)
     }
   }
   responseLatestMessage () {
     return {
       type: RESPONSE_BLOCKCHAIN,
-      data: JSON.stringify([bc.latestBlock()])
+      data: JSON.stringify([this.blockchain.latestBlock()])
     }
   }
 

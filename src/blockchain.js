@@ -1,6 +1,8 @@
 const CryptoJS = require('crypto-js')
 const hexToBinary = require('hex-to-binary')
 
+const INITIAL_DIFFICULTY = 7
+
 class Block {
   constructor (index, previousHash, timestamp, data, nonce, difficulty) {
     this.index = index
@@ -44,7 +46,7 @@ class Block {
   static isValidStructure (block) {
     return typeof block.index === 'number' &&
         typeof block.hash === 'string' &&
-        typeof block.previousHash === 'string' &&
+        (typeof block.previousHash === 'string' || block.index === 0) &&
         typeof block.timestamp === 'number' &&
         typeof block.data === 'string' &&
         typeof block.nonce === 'number' &&
@@ -123,7 +125,7 @@ class BlockChain {
 
   createGenesisBlock () {
     return new Block(
-      0, null, this.currentTimestamp(), 'GENESIS', 0, 3
+      0, null, 0, 'GENESIS', 0, INITIAL_DIFFICULTY
     )
   }
 
@@ -150,11 +152,13 @@ class BlockChain {
 
   isValid (chain) {
     if (!this.isValidGenesis(chain[0])) {
+      console.log('Chain has invalid genesis Block')
       return false
     }
 
     for (let i = 1; i < chain.length; i++) {
       if (!this.isValidNewBlock(chain[i], chain[i - 1])) {
+        console.log(`Block is invalid: ${JSON.stringify(chain[i], null, 4)}`)
         return false
       }
     }
@@ -172,11 +176,30 @@ class BlockChain {
         .map(difficulty => Math.pow(2, difficulty))
         .reduce((acc, val) => acc + val)
 
+    console.log(`REPLACING | Validity      -> ${this.isValid(newBlocks)}`)
+    console.log(`REPLACING | THEIR ACC Dif -> ${getAccumulativeDifficulty(newBlocks)}`)
+    console.log(`REPLACING | OUR ACC Dif   -> ${getAccumulativeDifficulty(this.chain)}`)
     if (this.isValid(newBlocks) && getAccumulativeDifficulty(newBlocks) > getAccumulativeDifficulty(this.chain)) {
       this.chain = newBlocks
+      console.log(`Replaced chain with: ${JSON.stringify(this.chain, null, 4)}`)
     }
   }
 }
+
+Block.fromString = (string) =>
+  Block.fromObject(
+    JSON.parse(string)
+  )
+
+Block.fromObject = (object) =>
+  new Block(
+    object.index,
+    object.previousHash,
+    object.timestamp,
+    object.data,
+    object.nonce,
+    object.difficulty
+  )
 
 module.exports = {
   BlockChain,

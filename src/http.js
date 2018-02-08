@@ -11,8 +11,14 @@ const initHTTPServer = (httpPort, blockChain, p2pserver) => {
 
   app.get('/mine', (req, res) => {
     if (req.query.data) {
+      // Create and mine the new block
       const newBlock = blockChain.generateNextBlock(req.query.data)
+
+      // Respond to http
       res.send(newBlock)
+
+      // Tell everyone
+      p2pserver.broadcastLatest()
     } else {
       console.log('Invalid Request - requires valid ?data query')
       res.send('Invalid request - requires valid ?data query')
@@ -23,10 +29,10 @@ const initHTTPServer = (httpPort, blockChain, p2pserver) => {
     res.send(p2pserver.sockets.map(({_socket}) => `${_socket.remoteAddress}:${_socket.remotePort}`))
   })
 
-  app.get('/addPeers', (req, res) => {
+  app.get('/addPeer', (req, res) => {
     if (req.query.peer) {
-      p2pserver.connectTopeer(req.query.peer)
-      res.send()
+      p2pserver.connectToPeer(req.query.peer)
+      res.send('Added new peer')
     } else {
       console.log('Invalid Request - requires valid ?peer query')
       res.send('Invalid Request - requires valid ?peer query')

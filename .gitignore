@@ -58,3 +58,6 @@ typings/
 .env
 
 yarn.lock
+
+# Test files
+test*.js

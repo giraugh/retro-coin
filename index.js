@@ -14,8 +14,6 @@ const startNode = (httpPort = '3456', p2pPort = '3400') => {
   initHTTPServer(p2pPort, retroCoin, p2pServer)
 }
 
-startNode()
-
 module.exports = {
   startNode
 }
