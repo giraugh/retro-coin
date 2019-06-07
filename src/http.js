@@ -1,6 +1,6 @@
 const express = require('express')
 
-const initHTTPServer = (httpPort, blockChain, p2pserver) => {
+const initHTTPServer = (httpPort, blockChain, p2pserver, wallet) => {
   const app = express()
 
   app.get('/', (req, res) => res.redirect('/blocks'))
@@ -9,20 +9,63 @@ const initHTTPServer = (httpPort, blockChain, p2pserver) => {
     res.send(blockChain.chain)
   )
 
-  app.get('/mine', (req, res) => {
+  app.get('/mineRaw', (req, res) => {
     if (req.query.data) {
       // Create and mine the new block
-      const newBlock = blockChain.generateNextBlock(req.query.data)
-
-      // Respond to http
-      res.send(newBlock)
+      const newBlock = blockChain.generateRawNextBlock(req.query.data)
 
       // Tell everyone
-      p2pserver.broadcastLatest()
+      if (newBlock) {
+        res.send(newBlock)
+        p2pserver.broadcastLatest()
+      } else {
+        res.send('Failed to add block to chain.')
+      }
     } else {
       console.log('Invalid Request - requires valid ?data query')
       res.send('Invalid request - requires valid ?data query')
     }
+  })
+
+  app.get('/mineBlock', (req, res) => {
+    const newBlock = blockChain.generateNextBlock(wallet.getPublic())
+    // Tell everyone
+    if (newBlock) {
+      res.send(newBlock)
+      p2pserver.broadcastLatest()
+    } else {
+      res.send('Failed to add block to chain.')
+    }
+  })
+
+  app.get('/mineTransaction', (req, res) => {
+    if (req.query.address && req.query.amount) {
+      let address = req.query.address
+      let amount = Number(req.query.amount)
+      const transaction = wallet.createTransaction(
+        address,
+        amount,
+        blockChain.unspentTxOuts
+      )
+      const newBlock = blockChain.generateNextBlock(wallet.getPublic(), [transaction])
+      // Tell everyone
+      if (newBlock) {
+        res.send(newBlock)
+        p2pserver.broadcastLatest()
+      } else {
+        res.send('Failed to add block to chain.')
+      }
+    } else {
+      console.log('Invalid Request - requires valid ?address and ?amount query')
+      res.send('Invalid request - requires valid ?address and ?amount query')
+    }
+  })
+
+  app.get('/balance', (req, res) => {
+    console.log(wallet.getPublic())
+    console.log(blockChain.unspentTxOuts)
+    const balance = wallet.getBalance(wallet.getPublic(), blockChain.unspentTxOuts)
+    res.send(`Account balance is ${balance}`)
   })
 
   app.get('/peers', (req, res) => {
@@ -44,4 +87,6 @@ const initHTTPServer = (httpPort, blockChain, p2pserver) => {
   })
 }
 
-module.exports = initHTTPServer
+module.exports = {
+  initHTTPServer
+}

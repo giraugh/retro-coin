@@ -1,5 +1,10 @@
 const CryptoJS = require('crypto-js')
 const hexToBinary = require('hex-to-binary')
+const {
+  processTransactions,
+  newCoinbaseTransaction,
+  Transaction
+} = require('./transactions')
 
 const INITIAL_DIFFICULTY = 7
 
@@ -48,7 +53,7 @@ class Block {
         typeof block.hash === 'string' &&
         (typeof block.previousHash === 'string' || block.index === 0) &&
         typeof block.timestamp === 'number' &&
-        typeof block.data === 'string' &&
+        typeof block.data === 'object' &&
         typeof block.nonce === 'number' &&
         typeof block.difficulty === 'number'
   }
@@ -59,6 +64,7 @@ class BlockChain {
     this.chain = [this.createGenesisBlock()]
     this.blockGenerationInterval = 10
     this.difficultyAdjustmentInterval = 10
+    this.unspentTxOuts = []
   }
 
   latestBlock () {
@@ -87,7 +93,7 @@ class BlockChain {
     }
   }
 
-  generateNextBlock (blockData) {
+  generateRawNextBlock (blockData) {
     const previousBlock = this.latestBlock()
     const nextIndex = previousBlock.index + 1
     const nextTimestamp = this.currentTimestamp()
@@ -101,9 +107,24 @@ class BlockChain {
     console.log('Mining block....')
     newBlock.mineHash()
     if (this.addBlock(newBlock)) {
-      console.log('Added block to chain. ')
+      console.log('Added block to chain')
+      return newBlock
+    } else {
+      console.log('Failed to add block to chain')
+      return null
     }
-    return newBlock
+  }
+
+  generateNextBlock (publicAddress, transactions = []) {
+    const coinbaseTx = newCoinbaseTransaction(
+      publicAddress,
+      this.latestBlock().index + 1
+    )
+    const blockData = [coinbaseTx]
+    for (let transaction of transactions) {
+      blockData.push(transaction)
+    }
+    return this.generateRawNextBlock(blockData)
   }
 
   currentTimestamp () {
@@ -117,15 +138,31 @@ class BlockChain {
 
   addBlock (newBlock) {
     if (this.isValidNewBlock(newBlock, this.latestBlock())) {
-      this.chain.push(newBlock)
-      return true
+      // Convert block data to Transactions
+      newBlock.data = newBlock.data.map(Transaction.fromObject)
+      console.log(newBlock.data[1] instanceof Transaction)
+
+      const retVal = processTransactions(
+        newBlock.data,
+        this.unspentTxOuts,
+        newBlock.index
+      )
+      if (retVal == null) {
+        console.log('Invalid block data')
+        return false
+      } else {
+        this.chain.push(newBlock)
+        this.unspentTxOuts = retVal
+        return true
+      }
+    } else {
+      return false
     }
-    return false
   }
 
   createGenesisBlock () {
     return new Block(
-      0, null, 0, 'GENESIS', 0, INITIAL_DIFFICULTY
+      0, null, 0, [], 0, INITIAL_DIFFICULTY
     )
   }
 

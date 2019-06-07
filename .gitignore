@@ -61,3 +61,6 @@ yarn.lock
 
 # Test files
 test*.js
+
+# Node data
+node

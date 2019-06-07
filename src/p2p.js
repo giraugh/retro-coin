@@ -61,8 +61,6 @@ class PeerToPeerServer {
   }
 
   handleBlockChainResponse (receivedBlocks) {
-    console.log('Handling block chain response of: ' + JSON.stringify(receivedBlocks, null, 4))
-
     // Convert received blocks to 'blocks'
     receivedBlocks = receivedBlocks.map(block => Block.fromObject(block))
 
@@ -81,6 +79,8 @@ class PeerToPeerServer {
         `Chain possibly behind - peer latest index: ${latestBlockReceived.index}, our latest index: ${latestBlockHeld.index}`
       )
       if (latestBlockHeld.hash === latestBlockReceived.previousHash) {
+        // Convert block data to transactions
+        // #TODO
         if (this.blockchain.addBlock(latestBlockReceived)) {
           console.log('Added new block, broadcasting...')
           this.broadcastLatest()
